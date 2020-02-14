@@ -1,25 +1,204 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+
+Project # 1
+=================================
+#Load required packages
+
+```{r pakages, echo=TRUE}
+library(glmnet)
+library(ggplot2)
+library(smooth)
+library(caret)
+library(tidyverse)
+library(keras)
+library(tensorflow)
+library(matrixStats)
+library(TSA)
+library(Metrics)
+library(TTR)
+library(forecast)
+library(shiny)
+library(tibble)
+library(plyr)
+library(dplyr)  #sub of plyr, streamlined way to manipulat tbl_df (goo function)
+library(SmartEDA)  #good package to assess data (type 1 & 2)
+library(RCurl)
+library(RMySQL)
+library(sqldf)
+library(RSQLite)
+library(httr)
+library(data.table)
+library(XML)
+library(tidyr)
+library(xlsx)
+library(lubridate) ##good to work with dates
+library(tidyselect)
+library(chron)
+
+```
+time <- substr(as.POSIXct(sprintf("%04.0f", x), format='%H%M'), 12, 16)
+time
 
 
-## Loading and preprocessing the data
+#Loading and preprocessing the data
+
+```{r data, echo=TRUE}
+activity<-read.csv(file = 'C:/Users/Kevin/Desktop/Data Analytics/JHU R/Course 5/Project 1/activity.CSV',header = TRUE)
+```
+
+##Change date format
+Note:  steps and interval columns are intervals and date is a factor.  I want to change to date
+
+```{r}
+activity$date<-as.Date(activity$date)
+activity$interval<-substr(as.POSIXct(sprintf("%04.0f", activity$interval), format='%H%M'), 12, 16)
+#sprintf takes the input interger and converts to 4 digits with precision 0
+#as.POSIXct takes for digits and converts to time
+#substr converts date time to just time (12 to 16 postion)
+activity$date_time<-paste(activity$date, activity$interval, sep = " ")
+activity$date_time<-as.Date(activity$date_time)
+summary(activity)
+```
+
+Note:  there are 2304 "NA's" or missing values from steps.  There are no missing values from the other columns.  Looking at the data, appears steps are completely missing for 10-01, 10-08, 11-01, 11-04, 11-09, 11-10, 11-14, 11-30.  I will remove these days 
+
+```{r}
+Activity_narm<-activity %>% dplyr::filter(!is.na(activity$steps))
+summary(Activity_narm)
+```
+
+
+Note: By removing the days there are not missing data values for steps and there are 15264 observations in the data set activity_narm, which is equivalent of the original data set's 17568 values minus the 2304 missing values
+
+##What is mean total number of steps taken per day?
+For this part of the assignment, you can ignore the missing values in the dataset.  Therefore I will use the activity_narm data I built with no "NA's"
+
+1.  Calculate the total number of steps taken per day  
+
+```{r}
+steps<-activity_narm %>% group_by(date) %>% 
+        dplyr::summarise(total_steps=sum(steps))
+steps
+```
+
+
+2.  Make a histogram of the total number of steps taken each day  
+
+```{r}
+step_plot<-ggplot(steps, aes(x=total_steps))+
+        geom_histogram(bins = 30)
+step_plot
+```
 
 
 
-## What is mean total number of steps taken per day?
+3.  Calculate and report the mean and median of the total number of steps taken per day  
+
+```{r}
+steps_mean<-mean(steps$total_steps)
+steps_median<-median(steps$total_steps)
+steps_mean
+steps_median
+```
+##What is the average daily activity pattern?
+
+1.  Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r}
+activity_time<-activity %>% group_by(interval) %>% 
+        dplyr::summarise(average_steps=mean(steps, na.rm=TRUE))
+
+plot(x=activity_time$interval, y=activity_time$average_steps, type='l', ylab='average steps per 5 minute interval', xlab='5 Minute Interval')
+```
+
+
+2.  Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r}
+colMax <- function(data) sapply(data, max, na.rm = TRUE)
+max_col<-colMax(activity_time)
+max_step<-max_col[2]
+max_interval<-activity_time %>% filter (average_steps==max_step)
+max_interval
+```
+
+##Imputing missing values
+
+Note that there are a number of days/intervals where there are missing values (NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
+
+1.  Calculate and report the total number of missing values in the dataset (i.e. the total number of NAs)  
+
+To determine the number to NAs for each variable, use summary
+```{r}
+summary(activity)
+```
+
+The output shows there are no NA's for date or interval, but 2304 for steps. I also determined this earlier in the assignment
+
+2.  Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.  
+
+I will fill in the missing values with the average steps calculated for the particular 5 minute interval. This was determined previously and the averagel valuse are stored in activity_time.
+
+
+3.  Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+
+```{r}
+#removes all rows that have no 'NAs', i.e. missing values
+NAR<-activity %>% dplyr::filter(is.na(activity$steps))
+#NAR has 2304 observations and matches number of NAs
+#replace the NA with average steps for the pariticular 5 minute interval 
+for(i in 1:2304) {
+     for (n in 1:288) {
+           if (NAR$interval[i]==activity_time$interval[n]){
+             NAR$steps[i]<-activity_time$average_steps[n]}
+     }   
+        
+}
+```
+
+The new data set with missing values added is activity_impute created combinning activity_narm (previously create, is the original data set with NAs removed) NAR (dataset with impute steps)
+```{r}
+activity_impute<-rbind(activity_narm, NAR)
+summary(activity_impute)
+```
+Note:  acitivity_impute has 17568 values equal to the original data set. 
+
+4.  Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?  
+
+First, recalculate total steps
+
+```{r}
+steps2<-activity_impute %>% group_by(date) %>% 
+        dplyr::summarise(total_steps=sum(steps))
+steps2
+```
+Histogram follows  
+
+
+```{r}
+step_plot2<-ggplot(steps2, aes(x=total_steps))+
+        geom_histogram(bins = 30)
+step_plot2
+```
 
 
 
-## What is the average daily activity pattern?
+```{r}
+steps_mean2<-mean(steps2$total_steps)
+steps_median2<-median(steps2$total_steps)
+steps_mean2
+steps_median2
+```
+
+The mean has not changed and the median changed slightly. The histogram appears to have barely changed (the imputed histogram max level is slightly higher).  It appears there is no difference between removing missing value and imputing values.
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+For this part the weekdays() function may be of some help here. Use the dataset with the filled-in missing values for this part.
+
+1.  Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
 
 
+2.  Make a panel plot containing a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+ 
 
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
