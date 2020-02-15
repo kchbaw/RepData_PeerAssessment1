@@ -4,11 +4,11 @@ output:
     keep_md: yes
 ---
 
-Project # 1
-=================================
-#Load required packages
+#Project # 1
 
-```{r pakages, echo=TRUE}
+##Load required packages.  Note, not all libraries will be used, but this is my standard library load
+
+```{r,echo=FALSE}
 library(glmnet)
 library(ggplot2)
 library(smooth)
@@ -40,28 +40,24 @@ library(tidyselect)
 library(chron)
 
 ```
-time <- substr(as.POSIXct(sprintf("%04.0f", x), format='%H%M'), 12, 16)
-time
-
 
 #Loading and preprocessing the data
 
-```{r data, echo=TRUE}
+```{r}
 activity<-read.csv(file = 'C:/Users/Kevin/Desktop/Data Analytics/JHU R/Course 5/Project 1/activity.CSV',header = TRUE)
+summary(activity)
 ```
+Note:  there are 2304 missing values for steps  
 
-##Change date format
-
-
-Note:  there are 2304 "NA's" or missing values from steps.  There are no missing values from the other columns.  Looking at the data, appears steps are completely missing for 10-01, 10-08, 11-01, 11-04, 11-09, 11-10, 11-14, 11-30.  I will remove these days 
+##remove observations with missing values
 
 ```{r}
 activity_narm<-activity %>% dplyr::filter(!is.na(activity$steps))
 summary(activity_narm)
 ```
+Note:  all missing values have been removed
 
-
-Note: By removing the days there are not missing data values for steps and there are 15264 observations in the data set activity_narm, which is equivalent of the original data set's 17568 values minus the 2304 missing values
+Note: By removing the days with missing step values, there are 15264 observations in the data set activity_narm, which is equivalent of the original data set's 17568 values minus the 2304 missing values
 
 ##What is mean total number of steps taken per day?
 For this part of the assignment, you can ignore the missing values in the dataset.  Therefore I will use the activity_narm data I built with no "NA's"
@@ -150,7 +146,8 @@ for(i in 1:2304) {
 }
 ```
 
-The new data set with missing values added is activity_impute created combinning activity_narm (previously create, is the original data set with NAs removed) NAR (dataset with impute steps)
+The new data set with missing values added is activity_impute created combining activity_narm (previously create, is the original data set with NAs removed) NAR (dataset with impute steps)
+
 ```{r}
 activity_impute<-rbind(activity_narm, NAR)
 summary(activity_impute)
@@ -184,7 +181,7 @@ steps_mean2
 steps_median2
 ```
 
-The mean has not changed and the median changed very slightly. The histogram appears to have barely changed (the imputed histogram max level is slightly higher).  It appears there is no difference between removing missing value and imputing values.
+The mean has not changed and the median changed very slightly. The histogram appears to have barely changed (the imputed histogram max level is slightly higher).  It appears there is little difference between removing missing value and imputing values.
 
 ##Are there differences in activity patterns between weekdays and weekends?
 
@@ -192,7 +189,73 @@ For this part the weekdays() function may be of some help here. Use the dataset 
 
 1.  Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
 
+```{r}
+#I will change date from a character to a date format
+activity_impute$date<-as.Date(activity_impute$date)
+
+#add an variable indicating day of the week
+activity_impute<-activity_impute %>% mutate(day=weekdays(date))
+
+#change day of week to either weekend or weekday
+
+for(i in 1:17568) {
+     
+           if (activity_impute$day[i]== ('Saturday')) {
+            activity_impute$day[i]<-'weekend' }
+  
+      if (activity_impute$day[i]== ('Sunday')) {
+            activity_impute$day[i]<-'weekend' }
+  
+    if (activity_impute$day[i]== ('Monday')) {
+            activity_impute$day[i]<-'weekday' }
+  
+    if (activity_impute$day[i]== ('Tuesday')) {
+            activity_impute$day[i]<-'weekday' }
+  
+    if (activity_impute$day[i]== ('Wednesday')) {
+            activity_impute$day[i]<-'weekday' }
+  
+    if (activity_impute$day[i]== ('Thursday')) {
+            activity_impute$day[i]<-'weekday' }
+  
+    if (activity_impute$day[i]== ('Friday')) {
+            activity_impute$day[i]<-'weekday' }
+  
+  
+        
+} 
+
+
+#change day to a factor
+activity_impute$day<-as.factor(activity_impute$day)
+
+summary(activity_impute)
+```
 
 2.  Make a panel plot containing a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
  
+```{r}
+
+activity_impute_day<-activity_impute %>% filter(day=='weekday')
+activity_impute_day<-activity_impute_day %>% group_by(interval) %>% 
+        dplyr::summarise(average_steps=mean(steps))
+activity_impute_day<-activity_impute_day %>% mutate(day='weekday')
+
+activity_impute_end<-activity_impute %>% filter(day=='weekend')
+activity_impute_end<-activity_impute_end %>% group_by(interval) %>% 
+        dplyr::summarise(average_steps=mean(steps))
+activity_impute_end<-activity_impute_end %>% mutate(day='weekend')
+
+
+par(mfrow = c(2,1))
+ 
+ plot(x=activity_impute_day$interval, y=activity_impute_day$average_steps, col='blue',type='l', main = "weekday", xlab='5-minute interval', ylab='average steps')
+ 
+ plot(x=activity_impute_end$interval, y=activity_impute_end$average_steps,col='green',type='l', main = "weekend", xlab='5-minute interval', ylab='average steps')
+
+
+```
+ 
+I conclude that the weekdays have a larger peak than weekend day but overall it looks as if people are more active throughout the day on weekends
+
 
