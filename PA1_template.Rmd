@@ -1,3 +1,8 @@
+---
+output: 
+  html_document: 
+    keep_md: yes
+---
 
 Project # 1
 =================================
@@ -46,24 +51,13 @@ activity<-read.csv(file = 'C:/Users/Kevin/Desktop/Data Analytics/JHU R/Course 5/
 ```
 
 ##Change date format
-Note:  steps and interval columns are intervals and date is a factor.  I want to change to date
 
-```{r}
-activity$date<-as.Date(activity$date)
-activity$interval<-substr(as.POSIXct(sprintf("%04.0f", activity$interval), format='%H%M'), 12, 16)
-#sprintf takes the input interger and converts to 4 digits with precision 0
-#as.POSIXct takes for digits and converts to time
-#substr converts date time to just time (12 to 16 postion)
-activity$date_time<-paste(activity$date, activity$interval, sep = " ")
-activity$date_time<-as.Date(activity$date_time)
-summary(activity)
-```
 
 Note:  there are 2304 "NA's" or missing values from steps.  There are no missing values from the other columns.  Looking at the data, appears steps are completely missing for 10-01, 10-08, 11-01, 11-04, 11-09, 11-10, 11-14, 11-30.  I will remove these days 
 
 ```{r}
-Activity_narm<-activity %>% dplyr::filter(!is.na(activity$steps))
-summary(Activity_narm)
+activity_narm<-activity %>% dplyr::filter(!is.na(activity$steps))
+summary(activity_narm)
 ```
 
 
@@ -190,7 +184,7 @@ steps_mean2
 steps_median2
 ```
 
-The mean has not changed and the median changed slightly. The histogram appears to have barely changed (the imputed histogram max level is slightly higher).  It appears there is no difference between removing missing value and imputing values.
+The mean has not changed and the median changed very slightly. The histogram appears to have barely changed (the imputed histogram max level is slightly higher).  It appears there is no difference between removing missing value and imputing values.
 
 ##Are there differences in activity patterns between weekdays and weekends?
 
